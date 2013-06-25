@@ -1,0 +1,113 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+from operator import itemgetter
+import resource, sys
+resource.setrlimit(resource.RLIMIT_STACK, (2**29,-1))
+sys.setrecursionlimit(10**6)
+
+best_case = 0
+
+def get_best_case(item, capacity, values, weights):
+    item -= 1
+    cont = True
+    best = 0.0
+    while cont:
+        if item < 0:
+            break
+        if weights[item] <= capacity:
+            capacity -= weights[item]
+            best += values[item]
+        else:
+            capacity = 0
+            best += float(values[item] * capacity) / weights[item]
+            cont = False
+        item -= 1
+    return best
+
+def O(item, capacity, table, values, weights, current):
+    global best_case
+    if current > best_case:
+        best_case = current
+    if item == 0:
+        return 0
+    if table.get((item, capacity), -1) != -1:
+        return table[(item, capacity)]
+    if weights[item - 1] <= capacity and current + get_best_case(item, capacity, values, weights) > best_case:
+        b = values[item - 1] + O(item - 1, capacity - weights[item - 1], table,
+                                 values, weights, current + values[item - 1])
+        a = O(item - 1, capacity, table, values, weights, current)
+        table[(item, capacity)] = max(a, b)
+    else:
+        table[(item, capacity)] = O(item - 1, capacity, table, values, weights, current)
+    return table[(item, capacity)]
+
+def has_taken(table, item, capacity, taken, values, weights, indices):
+    if item == 0 or table.get((item, capacity), -1) == -1:
+        return
+    next_capacity = capacity
+    if table[(item, capacity)] != table[(item - 1, capacity)]:
+        next_capacity -= weights[item - 1]
+        taken.append(indices[item - 1])
+    has_taken(table, item - 1, next_capacity, taken, values, weights, indices)
+
+def solveIt(inputData):
+    # Modify this code to run your optimization algorithm
+
+    best_case = 0
+
+    # parse the input
+    lines = inputData.split('\n')
+
+    firstLine = lines[0].split()
+    items = int(firstLine[0])
+    capacity = int(firstLine[1])
+
+    values = []
+    weights = []
+
+    for i in range(1, items+1):
+        line = lines[i]
+        parts = line.split()
+
+        values.append(int(parts[0]))
+        weights.append(int(parts[1]))
+
+    indices = range(0, len(values))
+    values, weights, indices = [list(x) for x in zip(*sorted(zip(values, weights, indices), key=lambda p: float(p[0])/p[1]))]
+
+    items = len(values)
+
+    # a trivial greedy algorithm for filling the knapsack
+    # it takes items in-order until the knapsack is full
+#    table = [[(-1 if i != 0 and j != 0 else 0) for i in xrange(0, capacity + 1)] for j in xrange(0, items + 1)]
+    table = {}
+    for i in xrange(0, capacity + 1):
+        table[(0, i)] = 0
+    for i in xrange(0, items + 1):
+        table[(i, 0)] = 0
+    value = O(items, capacity, table, values, weights, 0)
+    tk = []
+    has_taken(table, items, capacity, tk, values, weights, indices)
+    taken = [0]*items
+    for e in tk:
+        taken[e] = 1
+
+    # prepare the solution in the specified output format
+    outputData = str(value) + ' ' + str(1) + '\n'
+    outputData += ' '.join(map(str, taken))
+    return outputData
+
+
+import sys
+
+if __name__ == '__main__':
+    if len(sys.argv) > 1:
+        fileLocation = sys.argv[1].strip()
+        inputDataFile = open(fileLocation, 'r')
+        inputData = ''.join(inputDataFile.readlines())
+        inputDataFile.close()
+        print solveIt(inputData)
+    else:
+        print 'This test requires an input file.  Please select one from the data directory. (i.e. python solver.py ./data/ks_4_0)'
+
